@@ -218,7 +218,7 @@ private:
 		double time = 0;
 		double normal_dot_pos = glm::dot(wall->unitNormal, jon->position);
 		double normal_dot_vel = glm::dot(wall->unitNormal, jon->velocity);
-		time = (wall->d - normal_dot_pos) / normal_dot_vel;
+		time = ((wall->d+jon->radius) - normal_dot_pos) / normal_dot_vel;
 		if (time >= 0 && (normal_dot_vel < 0))
 		{
 			return time;
