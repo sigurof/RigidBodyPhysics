@@ -4,7 +4,7 @@
 class Box
 {
 public:
-	Box(const std::vector<Wall>& walls, const glm::vec3& scales) : walls(walls), geometry(scales) {}
+	Box(const std::vector<Wall>& walls, const glm::dvec3& scales) : walls(walls), geometry(scales) {}
 	std::vector<Wall> walls;
 
 	const Geometry& getGeometry() const { return geometry; }
