@@ -9,61 +9,76 @@ enum CollisionType
 class Collision
 {
 public:
-	CollisionType type;
+
 	Collision(){}
-	//Collision(std::vector<Particle>& ptcls) : time(std::numeric_limits<double>::infinity()) {
-	//	for (unsigned int i = 0; i < ptcls.size(); i++)
-	//	{
-	//		particles.push_back(&ptcls[i]);
-	//	}
-	//}
-	Collision(std::vector<Particle*>& ptcls) : time(std::numeric_limits<double>::infinity()) {
+
+	Collision(const std::vector<Particle*>& ptcls) : t(0) {
 		for (unsigned int i = 0; i < ptcls.size(); i++)
 		{
 			particles.push_back(ptcls[i]);
 		}
 	}
-	Collision(double time) : time(time) { }
-	Collision(Particle* p1, Particle* p2, double time) : time(time), type(PARTICLECOLLISION)
+	Collision(double t) : t(t) { }
+	Collision(Particle* p1, Particle* p2, double t) : t(t), type(PARTICLECOLLISION)
 	{
 		particles.push_back(p1); particles.push_back(p2);
 	}
 
-	Collision(Particle* p, Wall* w, double time) : time(time), wall(w), type(WALLCOLLISION)
+	Collision(Particle* p, Wall* w, double t) : t(t), wall(w), type(WALLCOLLISION)
 	{
 		particles.push_back(p);
 	}
-	//Collision(const Collision& other) {
-	//
-	//}
 
 	bool operator<(Collision& rhs) {
-		return this->time < rhs.time;
+		return this->t < rhs.t;
 	}
+
+	const Wall* getWall() const {
+		return wall;
+	}
+
+	const CollisionType getType() const { return type; }
 
 	std::vector<Particle*> particles;
 	Wall* wall;
-	double time;
+	double t; // global time for this collision
 
-	std::vector<glm::vec3> newVelocities;
-	std::vector<glm::vec3> newPositions;
+	std::vector<glm::dvec3> newVelocities;
+	std::vector<glm::dvec3> newPositions;
 
-	void calculateNewVelocities() 
+	static glm::dvec3 gravity;
+
+	void calculateNewVelocities(double lastCollTime) 
 	{
-		float frac, M;
-		glm::vec3 r2_min_r1, v2_min_v1;
+		double Dt = t - lastCollTime;
+		glm::dvec3 v0 = glm::dvec3(0, 0, 0);
+		glm::dvec3 v1 = glm::dvec3(0, 0, 0);
+		double frac, M;
+		glm::dvec3 r1_m_r0, v1_m_v0;
+		glm::dvec3 r0 = glm::dvec3(0, 0, 0);
+		glm::dvec3 r1 = glm::dvec3(0, 0, 0);
 		switch (type)
 		{
 		case WALLCOLLISION:
-			newVelocities.push_back(glm::reflect(particles[0]->velocity, wall->unitNormal));
+			r0 = particles[0]->r0 + particles[0]->v0*Dt + particles[0]->gravity*Dt*Dt / 2.0;
+			v0 = particles[0]->v0 + gravity*Dt;
+			newVelocities.push_back(glm::reflect(v0, wall->unitNormal));
+			
 			break;
 		case PARTICLECOLLISION:
+			r1 = particles[1]->r0 + particles[1]->v0*Dt + particles[1]->gravity*Dt*Dt / 2.0;
+
+			v0 = particles[0]->v0 + gravity*Dt;
+			v1 = particles[1]->v0 + gravity*Dt;
+			
 			M = particles[0]->mass + particles[1]->mass;
-			r2_min_r1 = particles[1]->position - particles[0]->position;
-			v2_min_v1 = particles[1]->velocity - particles[0]->velocity;
-			frac = glm::dot(v2_min_v1, r2_min_r1) / glm::dot(r2_min_r1, r2_min_r1);
-			newVelocities.push_back(particles[0]->velocity + 2 * particles[1]->mass / M*frac*r2_min_r1);
-			newVelocities.push_back(particles[1]->velocity - 2 * particles[0]->mass / M*frac*r2_min_r1);
+			r1_m_r0 = r1 - r0;
+			v1_m_v0 = v1 - v0;
+			frac = glm::dot(v1_m_v0, r1_m_r0) / glm::dot(r1_m_r0, r1_m_r0);
+			v0 = (v0 + 2 * particles[1]->mass / M * frac*r1_m_r0);
+			v1 = (v1 - 2 * particles[0]->mass / M * frac*r1_m_r0);
+			newVelocities.push_back(v0);
+			newVelocities.push_back(v1);
 			break;
 		default:
 			std::cout << "In Collision::calculateNewVelocities():\n";
@@ -71,22 +86,22 @@ public:
 			break;
 		}
 	}
-	void calculateNewPositions() 
+
+	const std::vector<glm::dvec3> getVelocitiesRightBeforeCollision() const
 	{
-		switch (type)
+		double Dt = t - particles[0]->t0;
+		glm::dvec3 v0, v1;
+		v0 = particles[0]->v0 + gravity*Dt;
+		std::vector<glm::dvec3> velocities = { v0 };
+		if (type == PARTICLECOLLISION)
 		{
-		case WALLCOLLISION:
-			/* This should be done correctly at a later stage */
-			break;
-		case PARTICLECOLLISION:
-			/* This should be done correctly at a later stage */
-			break;
-		default:
-			std::cout << "In Collision::calculateNewPositions():\n";
-			throw(std::exception("ERROR! Collision type not set.\n"));
-			break;
+			v1 = particles[1]->v0 + gravity*Dt;
+			velocities.push_back(v1);
 		}
+		return velocities;
 	}
+
+	CollisionType type;
 
 };
 
